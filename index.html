@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#123b72">
+<title>AngleLab | วัดองศาท่าทาง</title>
+<style>
+:root{--navy:#123b72;--blue:#1d5ca8;--sky:#eaf2ff;--ink:#172033;--muted:#667085;--line:#dce3ed;--bg:#f5f7fb;--green:#137a53;--orange:#a85a00}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
+header{background:linear-gradient(120deg,#123b72,#2368b5);color:white;padding:22px 16px 24px}
+.wrap{max-width:1100px;margin:auto}h1{font-size:clamp(1.35rem,4vw,2rem);margin:0 0 6px}header p{margin:0;color:#e2edff;font-size:.95rem}
+main{max-width:1100px;margin:18px auto;padding:0 14px 32px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:16px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 4px 18px #18365a0a;min-width:0}
+h2{font-size:1.05rem;margin:0 0 12px}.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+button,.file-label{border:0;border-radius:11px;padding:11px 14px;font-weight:650;font-size:.92rem;cursor:pointer;background:var(--blue);color:#fff}
+button.secondary,.file-label.secondary{background:#edf3fb;color:#18477e;border:1px solid #d6e3f5}
+button:disabled{opacity:.5;cursor:not-allowed}input[type=file]{display:none}
+.stage{position:relative;width:100%;background:#101827;border-radius:14px;overflow:hidden;min-height:260px;display:flex;align-items:center;justify-content:center}
+#camera,#photo,#overlay{display:block;width:100%;height:auto;max-height:68vh;object-fit:contain}
+#camera,#photo{display:none}#overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.placeholder{color:#c9d5e7;text-align:center;padding:32px 18px;line-height:1.6}
+.status{font-size:.88rem;color:var(--muted);margin:10px 0 0;min-height:1.4em}
+.note{background:#fff8e8;border:1px solid #f3dba7;color:#674313;padding:11px 12px;border-radius:12px;font-size:.86rem;line-height:1.5;margin-top:12px}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.tab{background:#f0f3f8;color:#334155;border:1px solid #dbe2eb;padding:8px 11px;border-radius:999px;font-size:.85rem}
+.tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.result-list{display:grid;gap:9px}
+.result{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px}
+.result .label{font-weight:650}.result small{display:block;color:var(--muted);font-size:.78rem;margin-top:3px}
+.value{font-size:1.3rem;font-weight:750;color:var(--navy);white-space:nowrap}
+.pill{font-size:.75rem;background:#e8f5ee;color:var(--green);padding:4px 7px;border-radius:999px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+select{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:white;color:var(--ink)}
+footer{max-width:1100px;margin:0 auto;padding:0 14px 28px;color:var(--muted);font-size:.82rem;line-height:1.6}
+hr{border:0;border-top:1px solid var(--line);margin:16px 0}
+@media(max-width:780px){main{grid-template-columns:1fr;margin-top:12px;padding:0 10px 24px}.panel{padding:13px}.stage{min-height:230px}header{padding:18px 14px}.value{font-size:1.2rem}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>AngleLab — วัดองศาท่าทาง</h1><p>เครื่องมือช่วยวัดมุมข้อต่อจากกล้องสดหรือรูปภาพ · ไม่คำนวณคะแนน RULA</p></div></header>
+<main>
+<section class="panel">
+<h2>1. เลือกวิธีนำเข้าภาพ</h2>
+<div class="controls">
+<button id="startCam">เปิดกล้อง</button>
+<button id="stopCam" class="secondary" disabled>ปิดกล้อง</button>
+<label class="file-label secondary" for="fileInput">อัปโหลดรูป</label><input id="fileInput" type="file" accept="image/*" capture="environment">
+<button id="analyzePhoto" class="secondary" disabled>วิเคราะห์รูป</button>
+</div>
+<div class="stage" id="stage">
+<div class="placeholder" id="placeholder">เปิดกล้องหรืออัปโหลดรูปเพื่อเริ่มต้น<br>แนะนำให้เห็นศีรษะ ลำตัว แขน และมือชัดเจน</div>
+<video id="camera" playsinline muted></video>
+<img id="photo" alt="รูปที่เลือก">
+<canvas id="overlay"></canvas>
+</div>
+<p class="status" id="status" aria-live="polite">กำลังเตรียมเครื่องมือวิเคราะห์…</p>
+<div class="note"><b>ข้อจำกัด:</b> ค่าที่คำนวณเป็นมุมประมาณจากภาพ 2 มิติ ไม่ใช่เครื่องมือแพทย์หรือการวัด 3 มิติ ความแม่นยำขึ้นกับมุมกล้อง เสื้อผ้า แสง และการมองเห็นจุดข้อต่อ โดยเฉพาะข้อมือ</div>
+</section>
+<section class="panel">
+<h2>2. เลือกด้านและดูองศา</h2>
+<div class="tabs">
+<button class="tab active" data-side="right">ด้านขวา</button><button class="tab" data-side="left">ด้านซ้าย</button>
+</div>
+<div class="result-list">
+<div class="result"><div><div class="label">ขั้นตอน 1 · ต้นแขน</div><small>มุมระหว่างไหล่–ข้อศอก เทียบแนวดิ่ง</small></div><div class="value" id="upper">—°</div></div>
+<div class="result"><div><div class="label">ขั้นตอน 2 · ปลายแขน</div><small>มุมงอข้อศอกจากไหล่–ศอก–ข้อมือ</small></div><div class="value" id="lower">—°</div></div>
+<div class="result"><div><div class="label">ขั้นตอน 3 · ข้อมือ (ประมาณ)</div><small>มุมระหว่างปลายแขนกับแนวมือที่ตรวจจับได้</small></div><div class="value" id="wrist">—°</div></div>
+<div class="result"><div><div class="label">ขั้นตอน 5 · คอ</div><small>มุมแนวศีรษะ/คอเทียบแนวดิ่ง (ประมาณ)</small></div><div class="value" id="neck">—°</div></div>
+<div class="result"><div><div class="label">ขั้นตอน 6 · ลำตัว</div><small>มุมแนวไหล่–สะโพกเทียบแนวดิ่ง</small></div><div class="value" id="trunk">—°</div></div>
+</div>
+<hr>
+<div class="grid2">
+<button id="capture" class="secondary" disabled>จับภาพและวัด</button>
+<button id="reset" class="secondary">ล้างผล</button>
+</div>
+<p class="status">เลือกด้านที่หันเข้ากล้องให้ถูกต้อง หากจุดข้อต่อคลาดเคลื่อน ให้ขยับกล้องหรือเปลี่ยนภาพก่อนวัดใหม่</p>
+</section>
+</main>
+<footer>
+<b>การประมวลผล:</b> รูปและวิดีโอจะถูกวิเคราะห์ในเบราว์เซอร์นี้และไม่มีการอัปโหลดไปยังเซิร์ฟเวอร์ของแอปโดยโค้ดนี้ อย่างไรก็ตามไลบรารี AI จะถูกโหลดจาก CDN เมื่อเปิดเว็บครั้งแรก<br>
+<b>วิธีใช้งานบนมือถือ:</b> เปิดผ่าน HTTPS และอนุญาตการใช้กล้อง หากกล้องไม่ทำงานให้ลอง Chrome บน Android หรือ Safari บน iPhone
+</footer>
+<script type="module">
+import { PoseLandmarker, HandLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+const $ = id => document.getElementById(id);
+const video=$("camera"), photo=$("photo"), canvas=$("overlay"), ctx=canvas.getContext("2d");
+let poseLandmarker=null, handLandmarker=null, stream=null, currentSide="right", raf=0, photoReady=false, lastResult=null;
+const status = msg => $("status").textContent=msg;
+const setVal=(id,v)=>$(id).textContent=Number.isFinite(v)?`${Math.round(v)}°`:"—°";
+const sideIndexes = {right:{shoulder:12,elbow:14,wrist:16,hip:24,ear:8},left:{shoulder:11,elbow:13,wrist:15,hip:23,ear:7}};
+function angle(a,b,c){if(!a||!b||!c)return NaN;const v1={x:a.x-b.x,y:a.y-b.y},v2={x:c.x-b.x,y:c.y-b.y};const dot=v1.x*v2.x+v1.y*v2.y,den=Math.hypot(v1.x,v1.y)*Math.hypot(v2.x,v2.y);if(!den)return NaN;return Math.acos(Math.max(-1,Math.min(1,dot/den)))*180/Math.PI;}
+function verticalAngle(a,b){if(!a||!b)return NaN;return Math.abs(Math.atan2(b.x-a.x, -(b.y-a.y))*180/Math.PI);}
+function visible(p){return p&&((p.visibility??1)>.35)}
+function drawLine(a,b,color="#ff4545",width=3){if(!a||!b)return;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(a.x*canvas.width,a.y*canvas.height);ctx.lineTo(b.x*canvas.width,b.y*canvas.height);ctx.stroke();}
+function drawDot(p){if(!p)return;ctx.fillStyle="#ff4545";ctx.beginPath();ctx.arc(p.x*canvas.width,p.y*canvas.height,5,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#fff";ctx.lineWidth=1.5;ctx.stroke();}
+function paint(landmarks, hands=[]){
+  const ids=sideIndexes[currentSide]; if(!landmarks||landmarks.length<25){status("ตรวจไม่พบร่างกายครบพอ ลองปรับกล้องหรือเลือกรูปใหม่");return;}
+  const p={shoulder:landmarks[ids.shoulder],elbow:landmarks[ids.elbow],wrist:landmarks[ids.wrist],hip:landmarks[ids.hip],ear:landmarks[ids.ear]};
+  Object.keys(p).forEach(k=>{if(!visible(p[k]))p[k]=null});
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Main measurement lines
+  drawLine(p.shoulder,p.elbow);drawLine(p.elbow,p.wrist);drawLine(p.shoulder,p.hip,"#ffb020");drawLine(p.ear,p.shoulder,"#41b6e6");
+  Object.values(p).forEach(drawDot);
+  const upper=verticalAngle(p.shoulder,p.elbow);
+  const lower=angle(p.shoulder,p.elbow,p.wrist);
+  const trunk=verticalAngle(p.shoulder,p.hip);
+  // Neck is a rough proxy: ear-to-shoulder line against vertical.
+  let neck=verticalAngle(p.ear,p.shoulder);
+  // Wrist is only a rough estimate using forearm axis and detected hand wrist-to-middle MCP direction.
+  let wrist=NaN;
+  const hand=hands.find(h=>h.handedness?.[0]?.categoryName?.toLowerCase().includes(currentSide)) || hands[0];
+  if(hand?.landmarks?.length>9 && p.elbow && p.wrist){
+    const hm=hand.landmarks, handAxis={x:hm[9].x-hm[0].x,y:hm[9].y-hm[0].y};
+    const fore={x:p.wrist.x-p.elbow.x,y:p.wrist.y-p.elbow.y};
+    const d=Math.abs(Math.atan2(fore.x*handAxis.y-fore.y*handAxis.x,fore.x*handAxis.x+fore.y*handAxis.y)*180/Math.PI);
+    wrist=Math.min(d,180-d);
+    drawLine(p.wrist,hm[9],"#ffb020");
+  }
+  setVal("upper",upper);setVal("lower",lower);setVal("wrist",wrist);setVal("neck",neck);setVal("trunk",trunk);
+  lastResult={upper,lower,wrist,neck,trunk};
+  status("วิเคราะห์แล้ว · ค่ามุมเป็นค่าประมาณจากภาพ 2 มิติ");
+}
+async function init(){
+ try{
+  status("กำลังโหลดโมเดล AI…");
+  const vision=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+  poseLandmarker=await PoseLandmarker.createFromOptions(vision,{baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",delegate:"GPU"},runningMode:"VIDEO",numPoses:1});
+  handLandmarker=await HandLandmarker.createFromOptions(vision,{baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",delegate:"GPU"},runningMode:"VIDEO",numHands:2});
+  status("พร้อมใช้งาน · เปิดกล้องหรืออัปโหลดรูป");
+ }catch(e){console.error(e);status("โหลดโมเดลไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วรีเฟรชหน้าเว็บ");}
+}
+function fitCanvas(source){
+ const w=source.videoWidth||source.naturalWidth||source.width||640, h=source.videoHeight||source.naturalHeight||source.height||480;
+ canvas.width=w;canvas.height=h;
+}
+function analyzeSource(source, timestamp=performance.now()){
+ if(!poseLandmarker)return status("โมเดลยังไม่พร้อม");
+ try{
+  fitCanvas(source);
+  const result=poseLandmarker.detectForVideo(source,timestamp);
+  let hands=[];
+  try{hands=handLandmarker.detectForVideo(source,timestamp).landmarks.map((landmarks,i)=>({landmarks,handedness:handLandmarker.detectForVideo(source,timestamp).handedness?.[i]}));}catch(e){}
+  if(result.landmarks?.length)paint(result.landmarks[0],hands);else status("ยังตรวจไม่พบร่างกายเต็มตัว ลองจัดท่าและมุมกล้องใหม่");
+ }catch(e){console.error(e);status("วิเคราะห์ไม่สำเร็จ ลองใหม่อีกครั้ง");}
+}
+function loop(){if(!stream||video.readyState<2)return;analyzeSource(video,performance.now());raf=requestAnimationFrame(loop);}
+$("startCam").onclick=async()=>{
+ if(!poseLandmarker)return status("กำลังโหลดโมเดล กรุณารอสักครู่");
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});
+  video.srcObject=stream;await video.play();video.style.display="block";photo.style.display="none";$("placeholder").style.display="none";
+  $("stopCam").disabled=false;$("capture").disabled=false;$("analyzePhoto").disabled=true;photoReady=false;
+  cancelAnimationFrame(raf);loop();status("เปิดกล้องแล้ว · จัดร่างกายให้อยู่ในภาพ");
+ }catch(e){status("เปิดกล้องไม่ได้ โปรดอนุญาตสิทธิ์กล้องและใช้เว็บผ่าน HTTPS");}
+};
+$("stopCam").onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;cancelAnimationFrame(raf);video.pause();video.srcObject=null;video.style.display="none";$("stopCam").disabled=true;status("ปิดกล้องแล้ว");};
+$("fileInput").onchange=e=>{
+ const f=e.target.files?.[0];if(!f)return;
+ if(stream)$("stopCam").click();
+ const url=URL.createObjectURL(f);photo.onload=()=>{photoReady=true;photo.style.display="block";video.style.display="none";$("placeholder").style.display="none";$("analyzePhoto").disabled=false;$("capture").disabled=true;fitCanvas(photo);ctx.clearRect(0,0,canvas.width,canvas.height);status("เลือกรูปแล้ว กด “วิเคราะห์รูป”");};
+ photo.src=url;
+};
+$("analyzePhoto").onclick=()=>{if(photoReady)analyzeSource(photo);};
+$("capture").onclick=()=>{if(stream)analyzeSource(video,performance.now());};
+$("reset").onclick=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);["upper","lower","wrist","neck","trunk"].forEach(id=>setVal(id,NaN));lastResult=null;status("ล้างผลแล้ว");};
+document.querySelectorAll("[data-side]").forEach(b=>b.onclick=()=>{currentSide=b.dataset.side;document.querySelectorAll("[data-side]").forEach(x=>x.classList.toggle("active",x===b));if(stream)analyzeSource(video,performance.now());else if(photoReady&&poseLandmarker)analyzeSource(photo);});
+init();
+</script>
+</body>
+</html>
